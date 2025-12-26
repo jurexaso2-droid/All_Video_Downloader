@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shoti Video Player</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 400px; /* Mobile-friendly width */
+            padding: 20px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #00ffcc;
+            text-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+        }
+
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            border-radius: 15px;
+            overflow: hidden;
+            background: #1e1e1e;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            aspect-ratio: 9/16; /* TikTok vertical ratio */
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .controls {
+            margin-top: 20px;
+        }
+
+        button {
+            background-color: #00ffcc;
+            color: #121212;
+            border: none;
+            padding: 12px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: transform 0.2s, background-color 0.2s;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.4);
+        }
+
+        button:hover {
+            background-color: #00e6b8;
+            transform: scale(1.05);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        button:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .info {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #aaaaaa;
+            min-height: 20px;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 16px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Shoti Player</h1>
+        </header>
+
+        <div class="video-wrapper">
+            <div class="loading" id="loadingText">Loading...</div>
+            <video id="shotiVideo" playsinline loop poster="https://via.placeholder.com/300x533/000000/FFFFFF?text=Shoti+Video">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+
+        <div class="info" id="videoInfo">Press "Next Shoti" to start</div>
+
+        <div class="controls">
+            <button id="nextBtn" onclick="getShoti()">Next Shoti</button>
+        </div>
+    </div>
+
+    <script>
+        const apiUrl = "https://betadash-shoti-yazky.vercel.app/shotizxx?apikey=shipazu";
+        const videoElement = document.getElementById('shotiVideo');
+        const nextBtn = document.getElementById('nextBtn');
+        const infoText = document.getElementById('videoInfo');
+        const loadingText = document.getElementById('loadingText');
+
+        async function getShoti() {
+            // Disable button and show loading state
+            nextBtn.disabled = true;
+            nextBtn.innerText = "Loading...";
+            loadingText.style.display = "block";
+            videoElement.style.opacity = "0.5";
+            infoText.innerText = "Fetching video...";
+
+            try {
+                const response = await fetch(apiUrl);
+                
+                if (!response.ok) {
+                    throw new Error("Network response was not ok");
+                }
+
+                const data = await response.json();
+
+                // Logic to find the video URL based on common Shoti API structures
+                // APIs usually return { data: { url: "..." } } or just { url: "..." }
+                let videoUrl = "";
+                let title = "";
+                let author = "";
+
+                if (data.result && data.result.url) {
+                    videoUrl = data.result.url; // Common pattern
+                    title = data.result.title || "";
+                } else if (data.data && data.data.url) {
+                    videoUrl = data.data.url;
+                } else if (data.url) {
+                    videoUrl = data.url;
+                } else if (data.shoti_url) {
+                    videoUrl = data.shoti_url;
+                } else {
+                    console.log("Unknown JSON structure:", data);
+                    // Fallback: assume the API might have returned a direct link in a property we missed
+                    // or the structure is significantly different. 
+                    throw new Error("Video URL not found in response");
+                }
+
+                // Metadata extraction (optional, depends on API)
+                if (data.result) {
+                    author = data.result.username || data.result.nickname || "";
+                    title = data.result.title || "";
+                }
+
+                // Update Video
+                videoElement.src = videoUrl;
+                
+                // Once the video loads enough data to play
+                videoElement.onloadeddata = () => {
+                    videoElement.style.opacity = "1";
+                    loadingText.style.display = "none";
+                    videoElement.play();
+                    
+                    // Update Info Text
+                    if (author) {
+                        infoText.innerText = `@${author} ${title ? '- ' + title : ''}`;
+                    } else {
+                        infoText.innerText = "Enjoy the video!";
+                    }
+
+                    // Reset button
+                    nextBtn.disabled = false;
+                    nextBtn.innerText = "Next Shoti";
+                };
+
+                // Handle error if the video source itself fails
+                videoElement.onerror = () => {
+                    throw new Error("Video format not supported or link expired");
+                };
+
+            } catch (error) {
+                console.error("Error fetching shoti:", error);
+                infoText.innerText = "Error loading video. Try again.";
+                loadingText.style.display = "none";
+                nextBtn.disabled = false;
+                nextBtn.innerText = "Retry";
+            }
+        }
+
+        // Load one automatically on start
+        window.onload = getShoti;
+    </script>
+
+</body>
+</html>
